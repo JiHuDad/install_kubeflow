@@ -1,0 +1,15 @@
+# kustomize/overlays/airgap/patches/ml-pipeline-ui-nodeport.yaml
+# ml-pipeline-ui Service를 NodePort로 노출하는 strategic merge patch
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: ml-pipeline-ui
+  namespace: kubeflow
+spec:
+  type: NodePort
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3000
+      nodePort: 31380

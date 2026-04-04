@@ -1,0 +1,56 @@
+# kustomize/overlays/airgap/kustomization.yaml
+# 폐쇄망 설치용 kustomize overlay
+#
+# 역할:
+#   - KFP 기본 manifest를 base로 참조
+#   - 모든 이미지 참조를 localhost:5000 (로컬 레지스트리)으로 치환
+#   - ml-pipeline-ui를 NodePort로 노출
+#
+# 사용:
+#   kustomize build kustomize/overlays/airgap | kubectl apply -f -
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# KFP upstream manifest를 base로 사용
+# airgap-bundle/manifests/pipelines 가 번들에 포함된 경우 해당 경로 사용
+resources:
+  - ../../../../airgap-bundle/manifests/pipelines/env/platform-agnostic-pns
+
+# 이미지 prefix 치환: 외부 레지스트리 → localhost:5000
+# kustomize v5의 images 필드를 활용
+# 아래는 예시이며, 01-collect-images.sh 실행 후 실제 이미지 목록을 기반으로 자동 갱신된다.
+images:
+  - name: gcr.io/ml-pipeline/api-server
+    newName: localhost:5000/ml-pipeline/api-server
+  - name: gcr.io/ml-pipeline/frontend
+    newName: localhost:5000/ml-pipeline/frontend
+  - name: gcr.io/ml-pipeline/persistenceagent
+    newName: localhost:5000/ml-pipeline/persistenceagent
+  - name: gcr.io/ml-pipeline/scheduledworkflow
+    newName: localhost:5000/ml-pipeline/scheduledworkflow
+  - name: gcr.io/ml-pipeline/cache-server
+    newName: localhost:5000/ml-pipeline/cache-server
+  - name: gcr.io/ml-pipeline/viewer-crd-controller
+    newName: localhost:5000/ml-pipeline/viewer-crd-controller
+  - name: gcr.io/ml-pipeline/visualization-server
+    newName: localhost:5000/ml-pipeline/visualization-server
+  - name: gcr.io/tfx-oss-public/ml_metadata_store_server
+    newName: localhost:5000/tfx-oss-public/ml_metadata_store_server
+  - name: gcr.io/ml-pipeline/metadata-envoy
+    newName: localhost:5000/ml-pipeline/metadata-envoy
+  - name: minio/minio
+    newName: localhost:5000/minio/minio
+  - name: mysql
+    newName: localhost:5000/library/mysql
+  - name: argoproj/workflow-controller
+    newName: localhost:5000/argoproj/workflow-controller
+  - name: argoproj/argoexec
+    newName: localhost:5000/argoproj/argoexec
+
+# NodePort 패치
+patches:
+  - path: patches/ml-pipeline-ui-nodeport.yaml
+    target:
+      kind: Service
+      name: ml-pipeline-ui

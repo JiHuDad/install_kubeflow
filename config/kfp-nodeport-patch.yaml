@@ -1,0 +1,18 @@
+# KFP UI NodePort 설정 패치
+# kubectl apply -f config/kfp-nodeport-patch.yaml
+#
+# ml-pipeline-ui Service를 NodePort로 노출한다.
+# nodePort: 31380 (변경하려면 KFP_NODEPORT 환경변수 사용)
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: ml-pipeline-ui
+  namespace: kubeflow
+spec:
+  type: NodePort
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3000
+      nodePort: 31380
