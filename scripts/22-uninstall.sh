@@ -12,7 +12,13 @@ ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 source "$SCRIPT_DIR/lib/common.sh"
 
 KFP_NAMESPACE="kubeflow"
-KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
+if [[ -z "${KUBECONFIG:-}" ]]; then
+  if [[ -f "${HOME}/.kube/config" ]]; then
+    KUBECONFIG="${HOME}/.kube/config"
+  else
+    KUBECONFIG="/etc/rancher/k3s/k3s.yaml"
+  fi
+fi
 REGISTRY_CONTAINER_NAME="kfp-registry"
 export KUBECONFIG
 

@@ -20,7 +20,13 @@ source "$SCRIPT_DIR/lib/common.sh"
 # ─── 설정 ────────────────────────────────────────────────────────────────────
 
 KFP_NAMESPACE="kubeflow"
-KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
+if [[ -z "${KUBECONFIG:-}" ]]; then
+  if [[ -f "${HOME}/.kube/config" ]]; then
+    KUBECONFIG="${HOME}/.kube/config"
+  else
+    KUBECONFIG="/etc/rancher/k3s/k3s.yaml"
+  fi
+fi
 export KUBECONFIG
 
 # ─── 함수 ────────────────────────────────────────────────────────────────────

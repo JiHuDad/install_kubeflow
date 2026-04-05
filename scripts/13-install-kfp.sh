@@ -25,7 +25,14 @@ source "$SCRIPT_DIR/lib/common.sh"
 KFP_NAMESPACE="kubeflow"
 KUSTOMIZE_OVERLAY_DIR="$ROOT_DIR/kustomize/overlays/airgap"
 NODEPORT_PATCH="$ROOT_DIR/config/kfp-nodeport-patch.yaml"
-KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
+# kubectl 기본 경로(~/.kube/config) 우선, 없으면 k3s 경로 fallback
+if [[ -z "${KUBECONFIG:-}" ]]; then
+  if [[ -f "${HOME}/.kube/config" ]]; then
+    KUBECONFIG="${HOME}/.kube/config"
+  else
+    KUBECONFIG="/etc/rancher/k3s/k3s.yaml"
+  fi
+fi
 
 export KUBECONFIG
 
@@ -89,9 +96,20 @@ main() {
   require_cmd kubectl kustomize
 
   # kubectl 연결 확인
+  if [[ ! -f "$KUBECONFIG" ]]; then
+    log_error "KUBECONFIG 파일이 없습니다: $KUBECONFIG"
+    log_error "먼저 10-install-k3s.sh 를 실행하세요."
+    exit 1
+  fi
+  if [[ ! -r "$KUBECONFIG" ]]; then
+    log_error "KUBECONFIG 파일을 읽을 수 없습니다: $KUBECONFIG"
+    log_error "sudo bash $0 으로 다시 실행하거나, 아래 명령으로 권한을 부여하세요:"
+    log_error "  sudo chmod 644 $KUBECONFIG"
+    exit 1
+  fi
   if ! kubectl cluster-info &>/dev/null; then
-    log_error "kubectl이 클러스터에 연결할 수 없습니다."
-    log_error "KUBECONFIG=$KUBECONFIG"
+    log_error "kubectl이 클러스터에 연결할 수 없습니다. (KUBECONFIG=$KUBECONFIG)"
+    log_error "K3s가 실행 중인지 확인하세요: sudo systemctl status k3s"
     exit 1
   fi
 
