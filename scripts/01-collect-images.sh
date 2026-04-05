@@ -24,7 +24,7 @@ source "$SCRIPT_DIR/lib/common.sh"
 
 KFP_MANIFEST_REPO="${KFP_MANIFEST_REPO:-https://github.com/kubeflow/pipelines.git}"
 KFP_MANIFEST_BRANCH="${KFP_MANIFEST_BRANCH:-$KFP_VERSION}"
-KFP_KUSTOMIZE_PATH="${KFP_KUSTOMIZE_PATH:-manifests/kustomize/env/platform-agnostic-pns}"
+KFP_KUSTOMIZE_PATH="${KFP_KUSTOMIZE_PATH:-manifests/kustomize/env/platform-agnostic}"
 
 WORK_DIR="${WORK_DIR:-/tmp/kfp-collect-$$}"
 IMAGE_LIST_FILE="$CONFIG_DIR/image-list.txt"
