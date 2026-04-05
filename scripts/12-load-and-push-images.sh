@@ -41,16 +41,50 @@ for entry in data:
 
 # 이미지를 로컬 레지스트리 주소로 변환
 # ghcr.io/kubeflow/kfp-api-server:2.15.0 → localhost:5000/kubeflow/kfp-api-server:2.15.0
+# chrislusf/seaweedfs:4.00              → localhost:5000/chrislusf/seaweedfs:4.00
+# mysql:8.4                             → localhost:5000/mysql:8.4
 remap_to_local() {
   local image="$1"
-  # 레지스트리 호스트 부분(첫 번째 / 이전) 제거
-  # docker.io/library/ubuntu:22.04 → library/ubuntu:22.04
+  local first_component="${image%%/*}"
   local without_registry
-  without_registry=$(echo "$image" | sed 's|^[^/]*/||')
 
-  # docker.io/ubuntu (library 없는 경우) 처리
-  # ubuntu:22.04 → library/ubuntu:22.04 (docker hub 관행이지만 여기선 그대로 유지)
+  # 레지스트리 호스트 조건: 슬래시가 있고 첫 컴포넌트에 점(.) 또는 콜론(:)이 포함되거나 localhost인 경우
+  if [[ "$image" == *"/"* ]] && \
+     { [[ "$first_component" == *"."* ]] || \
+       [[ "$first_component" == *":"* ]] || \
+       [[ "$first_component" == "localhost" ]]; }; then
+    without_registry="${image#*/}"
+  else
+    # 레지스트리 호스트 없음 (org/name 또는 단순 이미지명) — 그대로 유지
+    without_registry="$image"
+  fi
+
   echo "${REGISTRY_HOST}/${without_registry}"
+}
+
+# manifest.json의 이미지명을 containerd에 실제 저장된 이름으로 변환
+# ctr import 시 Docker Hub 이미지에 docker.io/ prefix가 자동으로 붙음
+resolve_ctr_name() {
+  local image="$1"
+  local first_component="${image%%/*}"
+
+  # 이미 레지스트리 호스트가 있으면 그대로 반환
+  if [[ "$image" == *"/"* ]] && \
+     { [[ "$first_component" == *"."* ]] || \
+       [[ "$first_component" == *":"* ]] || \
+       [[ "$first_component" == "localhost" ]]; }; then
+    echo "$image"
+    return
+  fi
+
+  # Docker Hub 이미지: ctr는 docker.io/ prefix를 붙여 저장
+  if [[ "$image" != *"/"* ]]; then
+    # 단순 이미지명: mysql:8.4 → docker.io/library/mysql:8.4
+    echo "docker.io/library/$image"
+  else
+    # org/name: chrislusf/seaweedfs:4.00 → docker.io/chrislusf/seaweedfs:4.00
+    echo "docker.io/$image"
+  fi
 }
 
 load_and_push_tar() {
@@ -81,8 +115,14 @@ load_and_push_tar() {
     local local_image
     local_image=$(remap_to_local "$image")
 
-    log_info "  re-tag: $image → $local_image"
-    ctr images tag "$image" "$local_image" 2>/dev/null || true
+    local ctr_image
+    ctr_image=$(resolve_ctr_name "$image")
+    log_info "  re-tag: $ctr_image → $local_image"
+    if ! ctr images tag "$ctr_image" "$local_image" 2>/dev/null; then
+      log_warn "  re-tag 실패: $ctr_image — 건너뜀"
+      echo "TAG_FAILED: $ctr_image" >> "$PUSH_LOG"
+      continue
+    fi
 
     log_info "  push: $local_image"
     if ! retry 3 3 ctr images push \
